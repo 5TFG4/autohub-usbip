@@ -1,0 +1,5 @@
+ACTION=="add", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", \
+  TAG+="systemd", ENV{SYSTEMD_WANTS}="usbip-autohub@add-%k.service"
+
+ACTION=="remove", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", \
+  TAG+="systemd", ENV{SYSTEMD_WANTS}="usbip-autohub@remove-%k.service"

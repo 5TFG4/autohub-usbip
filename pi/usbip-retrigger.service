@@ -1,0 +1,11 @@
+[Unit]
+Description=Retrigger USB add events for USB/IP autobind
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/udevadm trigger --subsystem-match=usb --action=add
+
+[Install]
+WantedBy=multi-user.target

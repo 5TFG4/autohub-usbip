@@ -1,0 +1,8 @@
+[Unit]
+Description=Watch clients.allow and refresh nftables allow-list
+
+[Path]
+PathChanged=/etc/usbip-autohub/clients.allow
+
+[Install]
+WantedBy=multi-user.target

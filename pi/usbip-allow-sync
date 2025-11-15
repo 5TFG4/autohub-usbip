@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ALLOW_FILE=${ALLOW_FILE:-"/etc/usbip-autohub/clients.allow"}
+NFT_OUTPUT=${NFT_OUTPUT:-"/etc/nftables.d/usbip-allow.nft"}
+TABLE_NAME=${TABLE_NAME:-"usbipguard"}
+TMP=$(mktemp)
+trap 'rm -f "$TMP"' EXIT
+
+if [[ ! -f "$ALLOW_FILE" ]]; then
+  echo "allow-list $ALLOW_FILE not found" >&2
+  exit 1
+fi
+
+{
+  cat <<EOF
+flush table inet ${TABLE_NAME}
+
+table inet ${TABLE_NAME} {
+  set clients4 { type ipv4_addr; flags interval; elements = {
+EOF
+  awk 'BEGIN{FS="[ \t]+"} /^[ \t]*#/ {next} NF {print "    "$1","}' "$ALLOW_FILE"
+  cat <<'EOF'
+  } }
+  chain input {
+    type filter hook input priority -10; policy accept;
+    tcp dport 3240 ip saddr @clients4 accept
+    tcp dport 3240 drop
+  }
+}
+EOF
+} >"$TMP"
+
+install -m 0644 "$TMP" "$NFT_OUTPUT"
+nft -f "$NFT_OUTPUT"

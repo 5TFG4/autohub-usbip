@@ -1,0 +1,7 @@
+[Unit]
+Description=Sync USB/IP client allow-list into nftables
+After=network-pre.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/usbip-allow-sync
