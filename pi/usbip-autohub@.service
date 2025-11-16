@@ -8,4 +8,4 @@ ConditionPathExists=/etc/autohub-usbip.conf
 Type=oneshot
 EnvironmentFile=/etc/autohub-usbip.conf
 EnvironmentFile=-%h/.autohub-usbip.env
-ExecStart=/bin/bash -c '$AUT0HUB_ROOT/bin/autobind.sh %I'
+ExecStart=/bin/bash -c 'exec "$1" "$2"' autobind "${AUT0HUB_ROOT}/bin/autobind.sh" "%i"

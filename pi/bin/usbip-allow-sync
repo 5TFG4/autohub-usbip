@@ -17,6 +17,8 @@ mkdir -p "$(dirname "$NFT_OUTPUT")"
 
 {
   cat <<EOF
+add table inet ${TABLE_NAME}
+
 flush table inet ${TABLE_NAME}
 
 table inet ${TABLE_NAME} {

@@ -6,4 +6,4 @@ ConditionPathExists=/etc/autohub-usbip.conf
 [Service]
 Type=oneshot
 EnvironmentFile=/etc/autohub-usbip.conf
-ExecStart=/bin/bash -c '$AUT0HUB_ROOT/bin/usbip-allow-sync'
+ExecStart=/bin/bash -c 'exec "$1"' allow "${AUT0HUB_ROOT}/bin/usbip-allow-sync"

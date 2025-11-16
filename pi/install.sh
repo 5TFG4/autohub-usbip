@@ -20,7 +20,7 @@ SYSTEM_CONF="/etc/autohub-usbip.conf"
 
 TARGET_USER=${SUDO_USER:-root}
 TARGET_GROUP=$(id -gn "$TARGET_USER")
-TOTAL_STEPS=7
+TOTAL_STEPS=8
 CURRENT_STEP=0
 
 default_win_host="192.168.1.2"
@@ -183,7 +183,7 @@ EOF
 
 capture_allow_list() {
   local entries=()
-  echo "Enter IPv4/CIDR entries for clients.allow (blank line to finish):"
+  echo "Enter IPv4/CIDR entries for clients.allow (blank line to finish):" >&2
   while true; do
     read -r line
     [[ -z $line ]] && break
@@ -253,6 +253,22 @@ sync_allow_list() {
   AUT0HUB_ROOT="$AUTOHUB_ROOT" "$AUTOHUB_ROOT/bin/usbip-allow-sync"
 }
 
+ensure_helper_scripts_executable() {
+  step "Ensure helper scripts are executable"
+  local scripts=(
+    "$AUTOHUB_ROOT/bin/usbip-allow-sync"
+    "$AUTOHUB_ROOT/bin/autobind.sh"
+  )
+  local script
+  for script in "${scripts[@]}"; do
+    if [[ ! -f $script ]]; then
+      echo "Missing helper script at $script" >&2
+      exit 1
+    fi
+    chmod 0755 "$script"
+  done
+}
+
 summary() {
   printf '\nInstallation complete!\n'
   cat <<EOF
@@ -283,6 +299,7 @@ EOF
   configure_env_file
   configure_allow_list
   configure_system_conf
+  ensure_helper_scripts_executable
   install_units
   sync_allow_list
   summary

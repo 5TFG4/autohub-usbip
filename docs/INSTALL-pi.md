@@ -20,6 +20,7 @@ The script will:
 - Force `usbipd` into IPv4-only mode via a systemd drop-in.
 - Prompt for `WIN_HOST`, `WIN_PORT`, `WIN_PATH`, `CURL_TIMEOUT`, and write both `config/autohub.env` and `/etc/autohub-usbip.conf`.
 - Ask for the IPv4/CIDR allow-list and write `config/clients.allow`.
+- Ensure `bin/usbip-allow-sync` and `bin/autobind.sh` are executable before they are invoked (covers filesystems that drop exec bits).
 - Install all udev/systemd assets from this folder and run the initial `usbip-allow-sync`.
 
 You can re-run the script anytime to update config or re-install the units; it keeps the repo-owned files under your regular user while writing `/etc` files as root. Continue with the sections below if you prefer to perform each step manually or need to audit what the script is doing.
@@ -113,6 +114,8 @@ Run an initial sync (writes `nft/usbip-allow.nft` and loads it):
 
 ```bash
 AUT0HUB_ROOT=$(grep AUT0HUB_ROOT /etc/autohub-usbip.conf | cut -d= -f2-)
+chmod +x ${AUT0HUB_ROOT}/bin/usbip-allow-sync            # required if clone lost exec bits
+chmod +x ${AUT0HUB_ROOT}/bin/autobind.sh
 sudo AUT0HUB_ROOT="$AUT0HUB_ROOT" ${AUT0HUB_ROOT}/bin/usbip-allow-sync
 ```
 
