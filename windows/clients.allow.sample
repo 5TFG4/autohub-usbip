@@ -1,0 +1,3 @@
+# IPv4 addresses allowed to POST events to the Windows listener.
+# Put your Pi's static IP here, one address per line.
+192.168.1.2

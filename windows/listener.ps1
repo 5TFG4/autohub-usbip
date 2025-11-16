@@ -1,5 +1,5 @@
 Param(
-  [string]$ConfigPath = "C:\\Autohub\\autohub.config"
+  [string]$ConfigPath = (Join-Path $PSScriptRoot 'autohub.config')
 )
 
 function Import-AutohubConfig {
@@ -18,12 +18,25 @@ function Import-AutohubConfig {
 }
 
 $config = Import-AutohubConfig -Path $ConfigPath
+try {
+  $configFullPath = (Resolve-Path -LiteralPath $ConfigPath -ErrorAction Stop).ProviderPath
+} catch {
+  $configFullPath = [System.IO.Path]::GetFullPath($ConfigPath)
+}
+$configDir = Split-Path -Parent $configFullPath
 $piHost = if ($config.ContainsKey('PI_HOST')) { $config['PI_HOST'] } else { '192.168.1.2' }
 $listenerPort = if ($config.ContainsKey('LISTENER_PORT')) { [int]$config['LISTENER_PORT'] } else { 59876 }
 $listenerPath = if ($config.ContainsKey('LISTENER_PATH')) { $config['LISTENER_PATH'] } else { '/usb-event/' }
 if (-not $listenerPath.StartsWith('/')) { $listenerPath = '/' + $listenerPath }
 $prefix = if ($config.ContainsKey('LISTENER_PREFIX')) { $config['LISTENER_PREFIX'] } else { "http://+:${listenerPort}${listenerPath}" }
-$allowListPath = if ($config.ContainsKey('ALLOW_LIST_PATH')) { $config['ALLOW_LIST_PATH'] } else { 'C:\\Autohub\\clients.allow' }
+if ($config.ContainsKey('ALLOW_LIST_PATH')) {
+  $allowListPath = $config['ALLOW_LIST_PATH']
+} else {
+  $allowListPath = 'clients.allow'
+}
+if (-not [System.IO.Path]::IsPathRooted($allowListPath)) {
+  $allowListPath = Join-Path $configDir $allowListPath
+}
 
 Add-Type -AssemblyName System.Net.HttpListener
 $listener = [System.Net.HttpListener]::new()

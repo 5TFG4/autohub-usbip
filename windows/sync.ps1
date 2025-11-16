@@ -1,5 +1,5 @@
 Param(
-  [string]$ConfigPath = "C:\\Autohub\\autohub.config"
+  [string]$ConfigPath = (Join-Path $PSScriptRoot 'autohub.config')
 )
 
 function Import-AutohubConfig {
@@ -45,6 +45,11 @@ function Get-AttachedPorts {
 
 $serverBusIds = Get-ExportedBusIds -Pi $piHost
 $attached = Get-AttachedPorts
+
+if (-not $serverBusIds -or $serverBusIds.Count -eq 0) {
+  Write-Warning "No exported bus IDs found on Pi $piHost; skipping detach to avoid dropping existing connections."
+  return
+}
 
 foreach ($busId in $serverBusIds) {
   if (-not ($attached | Where-Object { $_.BusId -eq $busId })) {

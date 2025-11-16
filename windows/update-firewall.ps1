@@ -1,5 +1,5 @@
 Param(
-  [string]$ConfigPath = "C:\\Autohub\\autohub.config",
+  [string]$ConfigPath = (Join-Path $PSScriptRoot 'autohub.config'),
   [string]$RuleName
 )
 
@@ -19,8 +19,21 @@ function Import-AutohubConfig {
 }
 
 $config = Import-AutohubConfig -Path $ConfigPath
+try {
+  $configFullPath = (Resolve-Path -LiteralPath $ConfigPath -ErrorAction Stop).ProviderPath
+} catch {
+  $configFullPath = [System.IO.Path]::GetFullPath($ConfigPath)
+}
+$configDir = Split-Path -Parent $configFullPath
 $listenerPort = if ($config.ContainsKey('LISTENER_PORT')) { [int]$config['LISTENER_PORT'] } else { 59876 }
-$allowListPath = if ($config.ContainsKey('ALLOW_LIST_PATH')) { $config['ALLOW_LIST_PATH'] } else { 'C:\\Autohub\\clients.allow' }
+if ($config.ContainsKey('ALLOW_LIST_PATH')) {
+  $allowListPath = $config['ALLOW_LIST_PATH']
+} else {
+  $allowListPath = 'clients.allow'
+}
+if (-not [System.IO.Path]::IsPathRooted($allowListPath)) {
+  $allowListPath = Join-Path $configDir $allowListPath
+}
 if (-not $RuleName) { $RuleName = "Autohub listener ${listenerPort}" }
 
 if (-not (Test-Path -Path $allowListPath)) {

@@ -1,4 +1,0 @@
-# IPv4 or CIDR ranges allowed to POST events to the Windows listener
-# Include the Pi's static IP at minimum.
-192.168.1.2
-192.168.1.0/24

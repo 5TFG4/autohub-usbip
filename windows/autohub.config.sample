@@ -1,6 +1,6 @@
 # Windows-side AutoHub configuration
-# Copy to C:\Autohub\autohub.config and adjust values.
+# Copy this file alongside the Windows scripts (windows\autohub.config) and adjust values.
 PI_HOST=192.168.1.2
 LISTENER_PORT=59876
 LISTENER_PATH=/usb-event/
-ALLOW_LIST_PATH=C:\Autohub\clients.allow
+ALLOW_LIST_PATH=clients.allow
