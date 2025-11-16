@@ -28,14 +28,20 @@ autohub-usbip/
 │   ├── TROUBLESHOOT.md
 │   └── DESIGN-notes.md
 ├── pi/
-│   ├── autobind.sh
-│   ├── 99-usbip-autobind.rules
-│   ├── usbip-retrigger.service
-│   ├── usbip-allow-sync
+│   ├── bin/
+│   │   ├── autobind.sh
+│   │   └── usbip-allow-sync
+│   ├── config/
+│   │   ├── autohub.env.sample
+│   │   ├── autohub-usbip.conf.sample
+│   │   └── clients.allow.sample
+│   ├── nft/
+│   │   └── .gitkeep
+│   ├── 99-usbip-autohub.rules
+│   ├── usbip-autohub@.service
 │   ├── usbip-allow-sync.service
 │   ├── usbip-allow-sync.path
-│   └── examples/
-│       └── clients.allow.sample
+│   └── usbip-retrigger.service
 └── windows/
     ├── listener.ps1
     ├── sync.ps1
@@ -46,9 +52,9 @@ autohub-usbip/
 
 ## Quick Start
 
-1. **Pi setup**: follow `docs/INSTALL-pi.md` to install usbip/nftables, drop the scripts in `/usr/local`, enable the systemd units, and seed the allow-list.
-2. **Windows setup**: follow `docs/INSTALL-win.md` to install USB/IP drivers, register the event listener + firewall rules, and configure scheduled tasks.
-3. **Allow-lists**: keep `/etc/usbip-autohub/clients.allow` (Pi) and `C:\Autohub\clients.allow` (Windows) in sync with the real client/server IPs.
+1. **Pi setup**: run `pi/install.sh` (or follow the manual steps in `docs/INSTALL-pi.md`) to declare `/etc/autohub-usbip.conf`, capture the allow-list + listener overrides, and install the provided udev/systemd units directly from the `pi/` subdirectory.
+2. **Windows setup**: follow `docs/INSTALL-win.md` to install USB/IP drivers, copy the scripts plus `autohub.config`, and register scheduled tasks referencing that config file.
+3. **Allow-lists**: keep `${AUT0HUB_ROOT}/config/clients.allow` (Pi) and `C:\Autohub\clients.allow` (Windows) in sync with the real client/server IPs—scripts consume these files automatically.
 4. **Validation**: use the "Verification & Daily Ops" sections in both install guides to confirm event delivery and automatic attach/detach flows.
 
 ## Documentation Map

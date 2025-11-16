@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ALLOW_FILE=${ALLOW_FILE:-"/etc/usbip-autohub/clients.allow"}
-NFT_OUTPUT=${NFT_OUTPUT:-"/etc/nftables.d/usbip-allow.nft"}
+AUT0HUB_ROOT=${AUT0HUB_ROOT:-"$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"}
+ALLOW_FILE=${ALLOW_FILE:-"${AUT0HUB_ROOT}/config/clients.allow"}
+NFT_OUTPUT=${NFT_OUTPUT:-"${AUT0HUB_ROOT}/nft/usbip-allow.nft"}
 TABLE_NAME=${TABLE_NAME:-"usbipguard"}
 TMP=$(mktemp)
 trap 'rm -f "$TMP"' EXIT
@@ -11,6 +12,8 @@ if [[ ! -f "$ALLOW_FILE" ]]; then
   echo "allow-list $ALLOW_FILE not found" >&2
   exit 1
 fi
+
+mkdir -p "$(dirname "$NFT_OUTPUT")"
 
 {
   cat <<EOF

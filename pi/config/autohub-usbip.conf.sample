@@ -1,0 +1,8 @@
+# Absolute path to the pi/ directory inside the cloned repo
+AUT0HUB_ROOT=/home/eric/projects/autohub-usbip/pi
+
+# Optional Pi -> Windows listener overrides
+WIN_HOST=192.168.1.2
+WIN_PORT=59876
+WIN_PATH=/usb-event/
+CURL_TIMEOUT=1

@@ -1,7 +1,9 @@
 [Unit]
 Description=Sync USB/IP client allow-list into nftables
 After=network-pre.target
+ConditionPathExists=/etc/autohub-usbip.conf
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/sbin/usbip-allow-sync
+EnvironmentFile=/etc/autohub-usbip.conf
+ExecStart=/bin/bash -c '$AUT0HUB_ROOT/bin/usbip-allow-sync'

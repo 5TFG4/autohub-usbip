@@ -1,3 +1,4 @@
+# Trigger systemd oneshots for USB add/remove events without running network calls in udev
 ACTION=="add", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", \
   TAG+="systemd", ENV{SYSTEMD_WANTS}="usbip-autohub@add-%k.service"
 

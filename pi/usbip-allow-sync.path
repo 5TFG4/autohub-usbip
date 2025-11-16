@@ -1,8 +1,9 @@
 [Unit]
 Description=Watch clients.allow and refresh nftables allow-list
+# Replace {{AUTOHUB_ROOT}} with the actual path recorded in /etc/autohub-usbip.conf
 
 [Path]
-PathChanged=/etc/usbip-autohub/clients.allow
+PathChanged={{AUTOHUB_ROOT}}/config/clients.allow
 
 [Install]
 WantedBy=multi-user.target

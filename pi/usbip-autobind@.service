@@ -1,8 +1,0 @@
-[Unit]
-Description=USB/IP autobind + notify (%I)
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=oneshot
-ExecStart=/usr/local/bin/usbip-autohub.sh %I

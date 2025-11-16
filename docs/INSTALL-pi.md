@@ -1,13 +1,28 @@
 # AutoHub – Pi Installation Guide
 
-This document turns a Raspberry Pi (or any Debian-based USB/IP host) into the automated USB exporter for AutoHub. The goals are:
-
-- Every newly attached **non-hub** USB device binds to `usbipd` and notifies Windows in ≤1s.
-- Removal events unbind the device and notify Windows.
-- A boot-time retrigger replays `add` events to restore bindings after reboots.
-- TCP 3240 only accepts IPv4 clients listed in `/etc/usbip-autohub/clients.allow` via nftables.
+This guide keeps every Pi-specific artifact under `pi/` in the repository. Clone once, `cd pi`, and work entirely from that folder; the only files outside the repo are `/etc` glue (udev/systemd and `/etc/autohub-usbip.conf`).
 
 All commands assume a sudo-capable shell on the Pi.
+
+## Fast install via `install.sh`
+
+Run this when you prefer a guided setup that captures the Windows listener details and allow-list for you:
+
+```bash
+cd autohub-usbip/pi
+chmod +x install.sh   # first run only, if needed
+sudo ./install.sh
+```
+
+The script will:
+
+- Optionally `apt-get install usbip nftables curl`.
+- Force `usbipd` into IPv4-only mode via a systemd drop-in.
+- Prompt for `WIN_HOST`, `WIN_PORT`, `WIN_PATH`, `CURL_TIMEOUT`, and write both `config/autohub.env` and `/etc/autohub-usbip.conf`.
+- Ask for the IPv4/CIDR allow-list and write `config/clients.allow`.
+- Install all udev/systemd assets from this folder and run the initial `usbip-allow-sync`.
+
+You can re-run the script anytime to update config or re-install the units; it keeps the repo-owned files under your regular user while writing `/etc` files as root. Continue with the sections below if you prefer to perform each step manually or need to audit what the script is doing.
 
 ## 1. Packages and IPv4-only usbipd
 
@@ -19,7 +34,7 @@ sudo apt install -y usbip nftables curl
 sudo systemctl enable --now usbipd.service 2>/dev/null || true
 
 # Force usbipd to listen on IPv4 only (once-off override)
-sudo systemctl edit usbipd.service
+
 ```
 
 Insert the override snippet when the editor opens:
@@ -30,102 +45,87 @@ ExecStart=
 ExecStart=/usr/sbin/usbipd -4
 ```
 
-Apply the change:
+Apply the change and verify TCP 3240:
 
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl restart usbipd.service
-```
-
-Verify TCP 3240 is bound on IPv4:
-
-```bash
 ss -lntp | grep 3240 || sudo netstat -lntp | grep 3240
 ```
 
-## 2. Autobind + Notify Script
-
-Install `pi/autobind.sh` as `/usr/local/bin/usbip-autohub.sh` (or keep the default name—just update the unit files accordingly). The script takes an `ACTION-BUSID` argument (`add-1-1.3`) and performs USB bind/unbind plus HTTP notifications to the Windows listener.
-
-Set `WIN_HOST` and `WIN_PORT` near the top of the script before deploying. Avoid DNS names unless your Pi can resolve them during early boot.
+## 2. Clone the repo and declare `AUT0HUB_ROOT`
 
 ```bash
-sudo install -m 0755 pi/autobind.sh /usr/local/bin/usbip-autohub.sh
+git clone https://github.com/<you>/autohub-usbip.git
+cd autohub-usbip/pi
+echo "AUT0HUB_ROOT=$(pwd)" | sudo tee /etc/autohub-usbip.conf
 ```
 
-## 3. udev Rule → systemd Onesot
-
-Copy `pi/99-usbip-autobind.rules` to `/etc/udev/rules.d/99-usbip-autohub.rules`.
+Append optional listener overrides (values shown are defaults):
 
 ```bash
-sudo install -m 0644 pi/99-usbip-autobind.rules /etc/udev/rules.d/99-usbip-autohub.rules
-sudo udevadm control --reload
-sudo udevadm trigger --subsystem-match=usb --action=add
+sudo tee -a /etc/autohub-usbip.conf <<'EOF'
+WIN_HOST=192.168.1.2
+WIN_PORT=59876
+WIN_PATH=/usb-event/
+CURL_TIMEOUT=1
+EOF
 ```
 
-The rule adds `TAG+="systemd"` and sets `SYSTEMD_WANTS=usbip-autohub@<ACTION>-<BUSID>.service`, ensuring udev returns quickly while systemd runs the heavy work.
+> `/etc/autohub-usbip.conf` should always point at the `pi/` directory. Every service expands `${AUT0HUB_ROOT}/bin` and `${AUT0HUB_ROOT}/config` based on this value.
 
-## 4. systemd Template
+## 3. Seed repo-local config
 
-Copy `pi/usbip-autohub@.service` (embedded in `pi/autobind.sh` comments) or create the template manually:
-
-```ini
-[Unit]
-Description=USB/IP autobind + notify (%I)
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=oneshot
-ExecStart=/usr/local/bin/usbip-autohub.sh %I
-```
-
-Save as `/etc/systemd/system/usbip-autohub@.service` and reload systemd:
+Still inside `autohub-usbip/pi`:
 
 ```bash
-sudo systemctl daemon-reload
+cp config/autohub.env.sample config/autohub.env           # optional runtime overrides
+cp config/clients.allow.sample config/clients.allow       # IPv4/CIDR allow-list
 ```
 
-## 5. Boot Retrigger
+`bin/autobind.sh` automatically sources `config/autohub.env` (if present) before using `/etc/autohub-usbip.conf`, so you can keep per-clone overrides out of `/etc`.
 
-Install `pi/usbip-retrigger.service` to replay USB `add` events after boot:
+## 4. Install udev + systemd units
 
 ```bash
-sudo install -m 0644 pi/usbip-retrigger.service /etc/systemd/system/usbip-retrigger.service
+sudo install -m 0644 99-usbip-autohub.rules /etc/udev/rules.d/99-usbip-autohub.rules
+sudo install -m 0644 usbip-autohub@.service /etc/systemd/system/usbip-autohub@.service
+sudo install -m 0644 usbip-retrigger.service /etc/systemd/system/usbip-retrigger.service
 sudo systemctl daemon-reload
 sudo systemctl enable --now usbip-retrigger.service
 ```
 
-## 6. nftables Allow-list for TCP 3240
+The udev rule triggers `usbip-autohub@add-%k.service` or `usbip-autohub@remove-%k.service`, which in turn run `${AUT0HUB_ROOT}/bin/autobind.sh %I`.
 
-1. Copy the sample allow-list and edit it:
-   ```bash
-   sudo install -m 0644 pi/examples/clients.allow.sample /etc/usbip-autohub/clients.allow
-   ```
-2. Review `pi/usbip-allow-sync`, update paths if needed, and install it:
-   ```bash
-   sudo install -m 0755 pi/usbip-allow-sync /usr/local/sbin/usbip-allow-sync
-   sudo mkdir -p /etc/nftables.d
-   sudo /usr/local/sbin/usbip-allow-sync
-   ```
-3. Deploy the service + path units:
-   ```bash
-   sudo install -m 0644 pi/usbip-allow-sync.service /etc/systemd/system/usbip-allow-sync.service
-   sudo install -m 0644 pi/usbip-allow-sync.path /etc/systemd/system/usbip-allow-sync.path
-   sudo systemctl daemon-reload
-   sudo systemctl enable --now usbip-allow-sync.service usbip-allow-sync.path
-   ```
+## 5. nftables allow-list from repo files
 
-The generated `/etc/nftables.d/usbip-allow.nft` contains a dedicated `inet usbipguard` table that only filters TCP 3240, leaving other firewall rules untouched.
+`bin/usbip-allow-sync` reads `${AUT0HUB_ROOT}/config/clients.allow` and writes `${AUT0HUB_ROOT}/nft/usbip-allow.nft`. Deploy the service + path units so nftables refreshes automatically whenever you edit the allow-list:
 
-## 7. Verification Checklist
+```bash
+sudo install -m 0644 usbip-allow-sync.service /etc/systemd/system/usbip-allow-sync.service
+sed "s|{{AUTOHUB_ROOT}}|${AUT0HUB_ROOT}|g" usbip-allow-sync.path | \
+  sudo tee /etc/systemd/system/usbip-allow-sync.path
+sudo systemctl daemon-reload
+sudo systemctl enable --now usbip-allow-sync.service usbip-allow-sync.path
+```
 
-- `ss -lntp | grep 3240` shows `usbipd` listening on IPv4.
-- `usbip list -l` lists local devices; new non-hub devices trigger systemd units and log entries under `usbip-autohub` in `journalctl -t usbip-autohub -f`.
-- From Windows, `usbip list -r <PI_IP>` shows exported devices immediately after attachment.
+Run an initial sync (writes `nft/usbip-allow.nft` and loads it):
+
+```bash
+AUT0HUB_ROOT=$(grep AUT0HUB_ROOT /etc/autohub-usbip.conf | cut -d= -f2-)
+sudo AUT0HUB_ROOT="$AUT0HUB_ROOT" ${AUT0HUB_ROOT}/bin/usbip-allow-sync
+```
+
+## 6. Verification Checklist
+
+- `journalctl -u usbip-autohub@* -f` shows binds/unbinds when you plug in non-hub devices.
+- `curl` requests reach the Windows listener referenced by `WIN_HOST/WIN_PORT`.
+- `sudo nft list table inet usbipguard` matches the addresses inside `${AUT0HUB_ROOT}/config/clients.allow`.
 
 ## Maintenance Tips
 
-- Update `/etc/usbip-autohub/clients.allow` whenever you add/remove Windows clients—`usbip-allow-sync.path` applies nftables changes automatically.
-- Keep an eye on `journalctl -u usbip-autohub@* -u usbip-allow-sync.service` for failures (network timeouts, nftables syntax errors, etc.).
+- Update `${AUT0HUB_ROOT}/config/clients.allow` whenever Windows client IPs change; the path unit reapplies nftables instantly.
+- Keep `/etc/autohub-usbip.conf` in sync when you relocate the repo or rename directories.
+- `${AUT0HUB_ROOT}/bin/autobind.sh` skips hubs via `bDeviceClass == 0x09`. Review `journalctl -t usbip-autohub` if a device fails to bind.
 - Consider wrapping TCP 3240 inside a VPN (WireGuard/IPsec) if the LAN is not fully trusted.
+3. Deploy the service + path units:

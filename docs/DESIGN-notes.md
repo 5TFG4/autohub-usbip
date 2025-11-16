@@ -11,7 +11,7 @@ This document explains the rationale behind key design decisions so you can adap
 
 - **Trusted LAN assumption**: USB/IP (TCP 3240) is plain text without authentication or integrity. AutoHub adds defense-in-depth (nftables + Windows Firewall + app-level allow-lists) but still assumes all participants reside on a trusted LAN or VPN.
 - **IPv4-only binding**: Restricting `usbipd` to IPv4 avoids accidental exposure on IPv6 interfaces that might bypass firewall policies.
-- **Allow-lists**: Using text files for allow-lists keeps automation simple and auditable—changes can be version-controlled or distributed with config management.
+- **Allow-lists**: Using repo-local text files (`config/clients.allow` on the Pi and `C:\Autohub\clients.allow` on Windows) keeps automation simple and auditable—changes can be version-controlled or distributed with config management.
 - **Minimal exposure**: TCP 59876 (listener) rejects everything except allow-listed sources and only accepts POSTs to `/usb-event/`. The Pi similarly drops all 3240 traffic unless sourced from the list.
 
 ## 3. Performance Goals
@@ -21,7 +21,7 @@ This document explains the rationale behind key design decisions so you can adap
 
 ## 4. Extensibility
 
-- **Multiple clients**: Add more IPv4 entries to `/etc/usbip-autohub/clients.allow` and duplicate the Windows setup. Each listener only reacts to posts coming from the Pi.
+- **Multiple clients**: Add more IPv4 entries to `${AUT0HUB_ROOT}/config/clients.allow` (Pi) and duplicate the Windows setup. Each listener only reacts to posts coming from the Pi.
 - **Alternate transports**: Swap the HTTP POST for MQTT, AMQP, or SignalR by editing `autobind.sh` and `listener.ps1`; the rest of the pipeline remains unchanged.
 - **Advanced security**: Place both hosts behind WireGuard/IPsec, then keep the same allow-lists but point them at the tunnel IPs. Mutual TLS is also possible by replacing `curl` with `openssl s_client` plus custom listeners.
 

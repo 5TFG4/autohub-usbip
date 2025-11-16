@@ -1,0 +1,11 @@
+[Unit]
+Description=USB/IP autobind + notify (%I)
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/etc/autohub-usbip.conf
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/autohub-usbip.conf
+EnvironmentFile=-%h/.autohub-usbip.env
+ExecStart=/bin/bash -c '$AUT0HUB_ROOT/bin/autobind.sh %I'

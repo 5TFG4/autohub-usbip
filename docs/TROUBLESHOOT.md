@@ -24,7 +24,7 @@ Common issues and quick checks when AutoHub does not behave like a true plug-and
 - **Symptom**: Windows attaches only after several seconds.
 - **Checks**:
   - Inspect Pi logs for repeated retries (`notify ... failed`). Network latency to Windows should be <1s.
-  - Ensure DNS lookups are not delaying the POST; prefer static IPs for `WIN_HOST`.
+  - Ensure DNS lookups are not delaying the POST; prefer static IPs for `WIN_HOST` (defined in `/etc/autohub-usbip.conf` or `config/autohub.env`).
   - Confirm the Windows listener is already running (scheduled task status = Ready/Running).
 
 ## 4. Sync Script Does Nothing
@@ -39,16 +39,16 @@ Common issues and quick checks when AutoHub does not behave like a true plug-and
 
 - **Symptom**: USB hubs themselves show up as devices.
 - **Checks**:
-  - Confirm `/sys/bus/usb/devices/<BUSID>/bDeviceClass` equals `09` for hubs; `autobind.sh` skips them by design.
-  - If hubs still bind, ensure the script path in `usbip-autohub@.service` points to the updated version.
+  - Confirm `/sys/bus/usb/devices/<BUSID>/bDeviceClass` equals `09` for hubs; `bin/autobind.sh` skips them by design.
+  - If hubs still bind, ensure the script path in `usbip-autohub@.service` points to the repo-local binary and that `/etc/autohub-usbip.conf` references the correct clone path.
 
 ## 6. nftables Rule Fails to Apply
 
 - **Symptom**: `usbip-allow-sync` exits non-zero.
 - **Checks**:
-  - Run `bash -x /usr/local/sbin/usbip-allow-sync` to see the generated file path.
-  - Validate `clients.allow` has one token per line; no IPv6 entries are supported.
-  - Make sure `/etc/nftables.d` exists and is writable.
+  - Run `AUT0HUB_ROOT=/path/to/clone bash -x /path/to/clone/bin/usbip-allow-sync` to see the generated file path.
+  - Validate `${AUT0HUB_ROOT}/config/clients.allow` has one token per line; no IPv6 entries are supported.
+  - Ensure `${AUT0HUB_ROOT}/nft` is writable by the user executing the service and that nftables can load the generated file.
 
 ## 7. Listener Misreports Source IP
 
@@ -56,7 +56,7 @@ Common issues and quick checks when AutoHub does not behave like a true plug-and
 - **Checks**:
   - A proxy or NAT may alter the source IP—ensure the Pi connects directly.
   - Use packet capture (`pktmon` / Wireshark) to confirm the source address.
-  - Update `clients.allow` to include any intermediate IPs if unavoidable (e.g., VPN tunnel endpoints).
+  - Update `${AUT0HUB_ROOT}/config/clients.allow` to include any intermediate IPs if unavoidable (e.g., VPN tunnel endpoints).
 
 ## 8. After Reboot Nothing Attaches
 

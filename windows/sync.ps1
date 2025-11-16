@@ -1,8 +1,27 @@
 Param(
-  [string]$Pi = "192.168.1.2"
+  [string]$ConfigPath = "C:\\Autohub\\autohub.config"
 )
 
+function Import-AutohubConfig {
+  param([string]$Path)
+  $map = @{}
+  if (-not (Test-Path -Path $Path)) { return $map }
+  foreach ($line in Get-Content -Path $Path) {
+    $trim = $line.Trim()
+    if (-not $trim -or $trim.StartsWith('#')) { continue }
+    $parts = $trim -split '=', 2
+    if ($parts.Length -eq 2) {
+      $map[$parts[0].Trim()] = $parts[1].Trim()
+    }
+  }
+  return $map
+}
+
+$config = Import-AutohubConfig -Path $ConfigPath
+$piHost = if ($config.ContainsKey('PI_HOST')) { $config['PI_HOST'] } else { '192.168.1.2' }
+
 function Get-ExportedBusIds {
+  param([string]$Pi)
   $output = & usbip list -r $Pi
   $ids = @()
   foreach ($line in $output) {
@@ -24,12 +43,12 @@ function Get-AttachedPorts {
   return $ports
 }
 
-$serverBusIds = Get-ExportedBusIds
+$serverBusIds = Get-ExportedBusIds -Pi $piHost
 $attached = Get-AttachedPorts
 
 foreach ($busId in $serverBusIds) {
   if (-not ($attached | Where-Object { $_.BusId -eq $busId })) {
-    & usbip attach -r $Pi -b $busId | Out-Null
+    & usbip attach -r $piHost -b $busId | Out-Null
   }
 }
 

@@ -1,8 +1,17 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2086
+# shellcheck disable=SC2086,SC1090
 set -euo pipefail
 
-WIN_HOST=${WIN_HOST:-"192.168.1.2"}   # Windows listener IP or hostname
+AUT0HUB_ROOT=${AUT0HUB_ROOT:-"$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"}
+AUT0HUB_ENV_FILE=${AUT0HUB_ENV_FILE:-"${AUT0HUB_ROOT}/config/autohub.env"}
+if [[ -f "$AUT0HUB_ENV_FILE" ]]; then
+  # Load WIN_* overrides without requiring systemd EnvironmentFile expansion.
+  set -a
+  source "$AUT0HUB_ENV_FILE"
+  set +a
+fi
+
+WIN_HOST=${WIN_HOST:-"192.168.1.2"}
 WIN_PORT=${WIN_PORT:-"59876"}
 WIN_PATH=${WIN_PATH:-"/usb-event/"}
 CURL_TIMEOUT=${CURL_TIMEOUT:-1}
