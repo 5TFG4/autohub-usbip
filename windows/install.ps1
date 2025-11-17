@@ -125,8 +125,15 @@ if (-not (Test-Path -Path $listenerScript)) { throw "listener.ps1 not found unde
 if (-not (Test-Path -Path $syncScript)) { throw "sync.ps1 not found under $root" }
 if (-not (Test-Path -Path $updateFirewallScript)) { throw "update-firewall.ps1 not found under $root" }
 
+try {
+  $pwsh = (Get-Command pwsh.exe -ErrorAction Stop).Source
+  Write-Host "Using pwsh.exe at: $pwsh"
+} catch {
+  throw 'PowerShell 7 (pwsh.exe) not found. Install it from https://aka.ms/powershell and re-run install.ps1.'
+}
+
 $filesEnsured = @()
-if (-not (Test-Path -Path $configPath)) {
+  $action = New-ScheduledTaskAction -Execute $pwsh -Argument $arguments
   $configSample = Join-Path $root 'autohub.config.sample'
   if (-not (Test-Path -Path $configSample)) { throw "autohub.config.sample missing under $root" }
   Copy-Item -LiteralPath $configSample -Destination $configPath
@@ -175,8 +182,8 @@ function Register-AutohubTask {
   } elseif ($task) {
     return $false
   }
-  $arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$ScriptPath`" -ConfigPath `"$configPath`""
-  $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $arguments
+  $arguments = "-NoProfile -File `"$ScriptPath`" -ConfigPath `"$configPath`""
+  $action = New-ScheduledTaskAction -Execute $pwsh -Argument $arguments
   $triggers = if ($IncludeUnlockTrigger) {
     New-AutohubSyncTriggers -UserId $userAccount
   } else {
