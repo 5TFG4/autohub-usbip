@@ -4,10 +4,10 @@ This guide turns a Windows workstation into the AutoHub USB/IP client that liste
 
 ## Recommended installation (quick start)
 
-> Run all commands from an elevated PowerShell 7 session (**Run as administrator**) so the installer can reserve HTTP prefixes, add firewall rules, and register scheduled tasks.
+> Run all commands from an elevated PowerShell session (**Run as administrator**) so the installer can reserve HTTP prefixes, add firewall rules, and register scheduled tasks.
 
-1. Install the Windows USB/IP driver + CLI (`usbip.exe`) and confirm `usbip.exe help` works from an elevated shell. The recommended build is `usbip-win2 0.9.7.3` from <https://github.com/vadimgrn/usbip-win2/releases/tag/V.0.9.7.3>.
-2. Install PowerShell 7 if it is not already present. Download the latest MSI from <https://aka.ms/powershell>, run it as Administrator, and verify `pwsh --version` works.
+1. Install PowerShell 7 (`pwsh.exe`) and make sure it is on `PATH` (e.g., run `pwsh.exe -v`).
+2. Install the Windows USB/IP driver + CLI (`usbip.exe`) and confirm `usbip.exe help` works from an elevated shell. The recommended build is `usbip-win2 0.9.7.3` from <https://github.com/vadimgrn/usbip-win2/releases/tag/V.0.9.7.3>.
 3. Fetch the project and run the Windows installer:
 
 ```powershell
@@ -16,14 +16,14 @@ Set-Location autohub-usbip\windows
 .\install.ps1
 ```
 
-> `install.ps1` validates that `usbip.exe` and `pwsh.exe` are discoverable via `Get-Command`. If either tool is missing, the script halts with guidance so you can install the dependency before continuing.
+> `install.ps1` validates that `usbip.exe` is discoverable via `Get-Command`. If it is missing from `PATH`, the script halts with step-by-step instructions (including the link above) so you can install the CLI before continuing.
 
 The installer:
 
 - Ensures `autohub.config` and `clients.allow` exist next to the scripts (copying the `.sample` files if needed).
 - Refreshes the HTTP URLACL for `LISTENER_PORT` + `LISTENER_PATH` (removes any stale reservation, then re-adds it for your signed-in account).
 - Creates/updates the firewall rule for the listener port, then runs `update-firewall.ps1` so only addresses listed in `clients.allow` are allowed inbound.
-- Registers the scheduled tasks **Autohub Listener** (logon) and **Autohub Sync On Logon** (logon + workstation unlock) that call `listener.ps1` and `sync.ps1` with your configuration.
+- Registers the scheduled tasks **Autohub Listener** (logon) and **Autohub Sync On Logon** (logon + workstation unlock) that call `listener.ps1` and `sync.ps1` via PowerShell 7.
 
 Edit `autohub.config` and `clients.allow` inside the `windows` folder to reflect your Pi's address, listener settings, and allowed clients. Re-run `install.ps1` any time you change ports or need to reapply the scheduled tasks/firewall.
 
@@ -33,9 +33,9 @@ Only follow these steps if you prefer to manage the Windows configuration yourse
 
 ### 1. Prerequisites
 
-1. Install the Windows USB/IP driver + CLI (`usbip.exe`). Use a recent, signed build compatible with your Windows edition—`usbip-win2 0.9.7.3` is the tested baseline.
-2. Install PowerShell 7 (`pwsh.exe`) from <https://aka.ms/powershell>. Confirm it is on `PATH` by running `pwsh --version`.
-3. Confirm `usbip.exe` is in the `PATH` by running `usbip.exe help` from an elevated shell.
+1. Install PowerShell 7 (`pwsh.exe`) and ensure `Get-Command pwsh.exe` succeeds from Windows PowerShell 5.1 (the installer and scheduled tasks launch pwsh directly).
+2. Install the Windows USB/IP driver + CLI (`usbip.exe`). Use a recent, signed build compatible with your Windows edition—`usbip-win2 0.9.7.3` is the tested baseline.
+3. Confirm `usbip.exe` is in the `PATH` by running `usbip.exe help` from an elevated PowerShell session.
 4. Clone or unpack the repository, then work from `autohub-usbip\windows`. All paths below assume you're inside that folder; override locations with `-ConfigPath` if you move the files elsewhere.
 
 ### 2. Directory layout and allow-list
@@ -75,7 +75,7 @@ All PowerShell scripts read `autohub.config` automatically, so avoid hard-coding
 Manual run (assumes `Set-Location autohub-usbip\windows`):
 
 ```powershell
-pwsh -NoProfile -File .\listener.ps1
+pwsh.exe -NoProfile -File .\listener.ps1
 ```
 
 ### 4. URLACL + firewall rule
@@ -95,7 +95,7 @@ New-NetFirewallRule -DisplayName "Autohub listener 59876" `
 After editing `clients.allow`, apply the addresses to the firewall rule:
 
 ```powershell
-pwsh -NoProfile -File .\update-firewall.ps1
+pwsh.exe -NoProfile -File .\update-firewall.ps1
 ```
 
 ### 5. Sync script
@@ -109,7 +109,7 @@ pwsh -NoProfile -File .\update-firewall.ps1
 Manual test run:
 
 ```powershell
-pwsh -NoProfile -File .\sync.ps1
+pwsh.exe -NoProfile -File .\sync.ps1
 ```
 
 ### 6. Scheduled tasks
