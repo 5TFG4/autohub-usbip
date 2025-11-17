@@ -62,6 +62,23 @@ function Import-AutohubConfig {
   return $map
 }
 
+function New-AutohubSyncTriggers {
+  param([string]$UserId)
+
+  $logonParams = @{}
+  if ($UserId) { $logonParams['User'] = $UserId }
+  $logonTrigger = New-ScheduledTaskTrigger -AtLogOn @logonParams
+
+  # TASK_SESSION_UNLOCK = 8 per MSFT_TaskSessionStateChangeTrigger docs
+  $stateChangeClass = Get-CimClass -Namespace 'root\Microsoft\Windows\TaskScheduler' -ClassName 'MSFT_TaskSessionStateChangeTrigger'
+  $unlockTrigger = New-CimInstance -CimClass $stateChangeClass -Property @{
+    Enabled     = $true
+    StateChange = 8
+  } -ClientOnly
+
+  return @($logonTrigger, $unlockTrigger)
+}
+
 $root = $PSScriptRoot
 $configPath = Join-Path $root 'autohub.config'
 $clientsPath = Join-Path $root 'clients.allow'
@@ -124,16 +141,21 @@ function Register-AutohubTask {
     [string]$TaskName,
     [string]$ScriptPath,
     [string]$Description,
-    [switch]$IncludeUnlockTrigger
+    [switch]$IncludeUnlockTrigger,
+    [switch]$ForceReregister
   )
   $task = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
-  if ($task) { return $false }
+  if ($task -and $ForceReregister) {
+    Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false | Out-Null
+  } elseif ($task) {
+    return $false
+  }
   $arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$ScriptPath`" -ConfigPath `"$configPath`""
   $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $arguments
-  $triggers = @()
-  $triggers += New-ScheduledTaskTrigger -AtLogOn -User $userAccount
-  if ($IncludeUnlockTrigger) {
-    $triggers += New-ScheduledTaskTrigger -AtUnlock
+  $triggers = if ($IncludeUnlockTrigger) {
+    New-AutohubSyncTriggers -UserId $userAccount
+  } else {
+    @(New-ScheduledTaskTrigger -AtLogOn -User $userAccount)
   }
   $principal = New-ScheduledTaskPrincipal -UserId $userAccount -LogonType Interactive
   Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $triggers -Principal $principal -Description $Description | Out-Null
@@ -144,7 +166,7 @@ $registered = @()
 if (Register-AutohubTask -TaskName 'Autohub Listener' -ScriptPath $listenerScript -Description 'Start the AutoHub listener at logon.') {
   $registered += 'Autohub Listener'
 }
-if (Register-AutohubTask -TaskName 'Autohub Sync On Logon' -ScriptPath $syncScript -Description 'Sync usbip ports with the Pi at logon and unlock.' -IncludeUnlockTrigger) {
+if (Register-AutohubTask -TaskName 'Autohub Sync On Logon' -ScriptPath $syncScript -Description 'Sync usbip ports with the Pi at logon and unlock.' -IncludeUnlockTrigger -ForceReregister) {
   $registered += 'Autohub Sync On Logon'
 }
 if ($registered.Count -gt 0) {

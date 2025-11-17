@@ -123,10 +123,18 @@ Register-ScheduledTask -TaskName "Autohub Listener" -Action $listenerAction -Tri
 
 $syncAction = New-ScheduledTaskAction -Execute "powershell.exe" `
   -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$PWD\sync.ps1`""
+
+# TASK_SESSION_UNLOCK = 8 via MSFT_TaskSessionStateChangeTrigger (Task Scheduler CIM)
+$stateChangeClass = Get-CimClass -Namespace "root\Microsoft\Windows\TaskScheduler" `
+  -ClassName "MSFT_TaskSessionStateChangeTrigger"
 $syncTriggers = @(
   New-ScheduledTaskTrigger -AtLogOn,
-  New-ScheduledTaskTrigger -AtUnlock
+  New-CimInstance -CimClass $stateChangeClass -Property @{
+    Enabled     = $true
+    StateChange = 8
+  } -ClientOnly
 )
+
 Register-ScheduledTask -TaskName "Autohub Sync On Logon" -Action $syncAction -Trigger $syncTriggers `
   -Description "USB/IP sync at logon and unlock" -RunLevel Highest
 ```
