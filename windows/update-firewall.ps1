@@ -46,5 +46,5 @@ if ($addresses.Count -eq 0) {
   Write-Warning "Allow-list empty; firewall rule will block all sources"
 }
 
-Set-NetFirewallRule -DisplayName $RuleName -RemoteAddress ($addresses -join ",") | Out-Null
+Set-NetFirewallRule -DisplayName $RuleName -RemoteAddress $addresses | Out-Null
 Write-Host "Updated $RuleName with $($addresses.Count) entries"
