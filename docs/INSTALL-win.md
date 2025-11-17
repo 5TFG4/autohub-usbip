@@ -20,7 +20,7 @@ Set-Location autohub-usbip\windows
 The installer:
 
 - Ensures `autohub.config` and `clients.allow` exist next to the scripts (copying the `.sample` files if needed).
-- Registers the HTTP URLACL for `LISTENER_PORT` + `LISTENER_PATH` using your signed-in account.
+- Refreshes the HTTP URLACL for `LISTENER_PORT` + `LISTENER_PATH` (removes any stale reservation, then re-adds it for your signed-in account).
 - Creates/updates the firewall rule for the listener port, then runs `update-firewall.ps1` so only addresses listed in `clients.allow` are allowed inbound.
 - Registers the scheduled tasks **Autohub Listener** (logon) and **Autohub Sync On Logon** (logon + workstation unlock) that call `listener.ps1` and `sync.ps1` with your configuration.
 

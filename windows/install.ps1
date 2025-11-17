@@ -79,6 +79,39 @@ function New-AutohubSyncTriggers {
   return @($logonTrigger, $unlockTrigger)
 }
 
+function Ensure-UrlAcl {
+  param(
+    [Parameter(Mandatory = $true)] [string] $Prefix,
+    [Parameter(Mandatory = $true)] [string] $User
+  )
+
+  Write-Host "HTTP prefix: $Prefix"
+
+  $deleteOutput = & netsh http delete urlacl url=$Prefix 2>&1
+  $deleteCode = $LASTEXITCODE
+  if ($deleteCode -eq 0) {
+    Write-Host "Removed existing URLACL for prefix: $Prefix"
+  } else {
+    Write-Host 'No existing URLACL to remove (or delete failed benignly):'
+    Write-Host "  netsh http delete urlacl url=$Prefix"
+    Write-Host "  -> ExitCode=$deleteCode, Message: $deleteOutput"
+  }
+
+  $addOutput = & netsh http add urlacl url=$Prefix user="$User" 2>&1
+  $addCode = $LASTEXITCODE
+  if ($addCode -eq 0) {
+    Write-Host "Configured URLACL for prefix: $Prefix."
+    return
+  }
+
+  if ($addOutput -match '183' -or $addOutput -match 'already.*exists') {
+    Write-Host "URLACL for prefix $Prefix already exists; keeping existing reservation."
+    return
+  }
+
+  throw "Failed to add URLACL: $addOutput"
+}
+
 $root = $PSScriptRoot
 $configPath = Join-Path $root 'autohub.config'
 $clientsPath = Join-Path $root 'clients.allow'
@@ -115,17 +148,9 @@ $listenerPort = if ($config.ContainsKey('LISTENER_PORT')) { [int]$config['LISTEN
 $listenerPath = if ($config.ContainsKey('LISTENER_PATH')) { $config['LISTENER_PATH'] } else { '/usb-event/' }
 if (-not $listenerPath.StartsWith('/')) { $listenerPath = '/' + $listenerPath }
 $prefix = "http://+:${listenerPort}${listenerPath}"
-Write-Host "HTTP prefix: $prefix"
 
 $userAccount = if ($env:USERDOMAIN) { "$env:USERDOMAIN\$env:USERNAME" } else { "$env:COMPUTERNAME\$env:USERNAME" }
-$netshOutput = & netsh http add urlacl url=$prefix user="$userAccount" 2>&1
-if ($LASTEXITCODE -ne 0) {
-  $netshMessage = ($netshOutput | Out-String).Trim()
-  if ($netshMessage -notmatch 'already.*(exists|registered)') {
-    throw "Failed to add URLACL: $netshMessage"
-  }
-}
-Write-Host "Configured URLACL for prefix: $prefix."
+Ensure-UrlAcl -Prefix $prefix -User $userAccount
 
 $ruleName = "Autohub listener ${listenerPort}"
 $existingRule = Get-NetFirewallRule -DisplayName $ruleName -ErrorAction SilentlyContinue
