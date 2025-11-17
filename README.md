@@ -53,7 +53,7 @@ autohub-usbip/
 ## Quick Start
 
 1. **Pi setup**: run `pi/install.sh` (or follow the manual steps in `docs/INSTALL-pi.md`) to declare `/etc/autohub-usbip.conf`, capture the allow-list + listener overrides, and install the provided udev/systemd units directly from the `pi/` subdirectory.
-2. **Windows setup**: follow `docs/INSTALL-win.md` to install USB/IP drivers, copy the scripts plus `autohub.config`, and register scheduled tasks referencing that config file.
+2. **Windows setup**: follow `docs/INSTALL-win.md` to install USB/IP drivers, copy the scripts plus `autohub.config`, and register scheduled tasks referencing that config file. Install `usbip-win2 0.9.7.3` (or another compatible build) and confirm `usbip.exe help` works—`install.ps1` aborts early with remediation instructions if the CLI is not yet on `PATH`.
 3. **Allow-lists**: keep `${AUT0HUB_ROOT}/config/clients.allow` (Pi) and `C:\Autohub\clients.allow` (Windows) in sync with the real client/server IPs—scripts consume these files automatically.
 4. **Validation**: use the "Verification & Daily Ops" sections in both install guides to confirm event delivery and automatic attach/detach flows.
 

@@ -11,6 +11,41 @@ if (-not $isAdmin) {
   return
 }
 
+# ---- Pre-flight: ensure usbip.exe client is available ----
+function Test-UsbipInstalled {
+  try {
+    $cmd = Get-Command usbip.exe -ErrorAction Stop
+    Write-Host "[usbip] Found usbip.exe at: $($cmd.Source)"
+    return $true
+  } catch {
+    return $false
+  }
+}
+
+if (-not (Test-UsbipInstalled)) {
+  Write-Host ''
+  Write-Host '============================================' -ForegroundColor Yellow
+  Write-Host '  usbip.exe not found. AutoHub cannot continue.' -ForegroundColor Yellow
+  Write-Host '============================================' -ForegroundColor Yellow
+  Write-Host ''
+  Write-Host 'Please install the Windows USB/IP client (usbip-win2 0.9.7.3) and re-run install.ps1.' -ForegroundColor Yellow
+  Write-Host ''
+  Write-Host 'Quick install steps:'
+  Write-Host '  1. Open this release page (clickable in PowerShell):'
+  Write-Host '     https://github.com/vadimgrn/usbip-win2/releases/tag/V.0.9.7.3' -ForegroundColor Cyan
+  Write-Host '  2. Download the Windows x64 installer (.exe) from the Assets section.'
+  Write-Host '  3. Right-click the installer → "Run as administrator" and finish the wizard.'
+  Write-Host '  4. Close and reopen an elevated PowerShell, then run:'
+  Write-Host '       usbip.exe help'
+  Write-Host '     Seeing the help text confirms the CLI is installed and on PATH.'
+  Write-Host ''
+  Write-Host 'After completing those steps, run:'
+  Write-Host '  .\install.ps1' -ForegroundColor Green
+  Write-Host ''
+
+  return
+}
+
 function Import-AutohubConfig {
   param([string]$Path)
   $map = @{}

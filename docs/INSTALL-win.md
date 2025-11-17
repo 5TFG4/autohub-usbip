@@ -6,7 +6,7 @@ This guide turns a Windows workstation into the AutoHub USB/IP client that liste
 
 > Run all commands from an elevated PowerShell session (**Run as administrator**) so the installer can reserve HTTP prefixes, add firewall rules, and register scheduled tasks.
 
-1. Install the Windows USB/IP driver + CLI (`usbip.exe`) and confirm `usbip.exe help` works from an elevated shell.
+1. Install the Windows USB/IP driver + CLI (`usbip.exe`) and confirm `usbip.exe help` works from an elevated shell. The recommended build is `usbip-win2 0.9.7.3` from <https://github.com/vadimgrn/usbip-win2/releases/tag/V.0.9.7.3>.
 2. Fetch the project and run the Windows installer:
 
 ```powershell
@@ -14,6 +14,8 @@ git clone https://github.com/5TFG4/autohub-usbip.git
 Set-Location autohub-usbip\windows
 .\install.ps1
 ```
+
+> `install.ps1` validates that `usbip.exe` is discoverable via `Get-Command`. If it is missing from `PATH`, the script halts with step-by-step instructions (including the link above) so you can install the CLI before continuing.
 
 The installer:
 
@@ -30,7 +32,7 @@ Only follow these steps if you prefer to manage the Windows configuration yourse
 
 ### 1. Prerequisites
 
-1. Install the Windows USB/IP driver + CLI (`usbip.exe`). Use a recent, signed build compatible with your Windows edition.
+1. Install the Windows USB/IP driver + CLI (`usbip.exe`). Use a recent, signed build compatible with your Windows edition—`usbip-win2 0.9.7.3` is the tested baseline.
 2. Confirm `usbip.exe` is in the `PATH` by running `usbip.exe help` from an elevated PowerShell session.
 3. Clone or unpack the repository, then work from `autohub-usbip\windows`. All paths below assume you're inside that folder; override locations with `-ConfigPath` if you move the files elsewhere.
 
