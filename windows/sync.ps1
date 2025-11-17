@@ -32,9 +32,9 @@ function Get-ExportedBusIds {
       continue
     }
 
-    if ($line -match '^\s*([0-9\.-]+):') {
-      $ids += $Matches[1]
-      continue
+    if ($line -match '^\s*([0-9\.-]+)\s*:') {
+        $ids += $Matches[1]
+        continue
     }
   }
 
