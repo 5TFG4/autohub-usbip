@@ -31,8 +31,9 @@ Common issues and quick checks when AutoHub does not behave like a true plug-and
 
 - **Symptom**: `sync.ps1` logs no attachments even though `usbip list -r` shows devices.
 - **Checks**:
-  - Run `usbip list -r <PI_IP>` manually; if output format differs, tweak the regex in `sync.ps1` (`'^\s*-\s*busid\s+([0-9\.-]+)\s+\('`).
-  - Verify the CLI returns exit code 0; otherwise capture the stderr for driver-specific errors.
+  - Run `usbip list -r <PI_IP>` manually; the script supports both `- busid ...` and `3-2:` style lines, but capture the output in case a newer driver introduces another format.
+  - Invoke `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\sync.ps1 -Verbose` to log the raw `usbip` output when no bus IDs are parsed.
+  - Verify the CLI returns exit code 0; the script now captures stderr as well, so failures surface in verbose logs.
   - `usbip port` output should list `busid = ...`; if formatting changed, adjust the regex in `Detach-Busid` and cleanup loops.
 
 ## 5. Pi Exports USB Hubs

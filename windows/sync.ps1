@@ -22,14 +22,29 @@ $piHost = if ($config.ContainsKey('PI_HOST')) { $config['PI_HOST'] } else { '192
 
 function Get-ExportedBusIds {
   param([string]$Pi)
-  $output = & usbip list -r $Pi
+
+  $output = & usbip list -r $Pi 2>&1
   $ids = @()
+
   foreach ($line in $output) {
     if ($line -match '^\s*-\s*busid\s+([0-9\.-]+)\s+\(') {
       $ids += $Matches[1]
+      continue
+    }
+
+    if ($line -match '^\s*([0-9\.-]+):') {
+      $ids += $Matches[1]
+      continue
     }
   }
-  return $ids | Sort-Object -Unique
+
+  $ids = $ids | Sort-Object -Unique
+
+  if (-not $ids -or $ids.Count -eq 0) {
+    Write-Verbose "No bus IDs parsed from 'usbip list -r $Pi'. Raw output:`n$output"
+  }
+
+  return $ids
 }
 
 function Get-AttachedPorts {
