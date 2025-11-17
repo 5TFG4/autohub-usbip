@@ -38,7 +38,6 @@ if (-not [System.IO.Path]::IsPathRooted($allowListPath)) {
   $allowListPath = Join-Path $configDir $allowListPath
 }
 
-Add-Type -AssemblyName System.Net.HttpListener
 $listener = [System.Net.HttpListener]::new()
 $listener.Prefixes.Clear()
 $listener.Prefixes.Add($prefix)
