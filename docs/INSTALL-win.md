@@ -4,10 +4,11 @@ This guide turns a Windows workstation into the AutoHub USB/IP client that liste
 
 ## Recommended installation (quick start)
 
-> Run all commands from an elevated PowerShell session (**Run as administrator**) so the installer can reserve HTTP prefixes, add firewall rules, and register scheduled tasks.
+> Run all commands from an elevated PowerShell 7 session (**Run as administrator**) so the installer can reserve HTTP prefixes, add firewall rules, and register scheduled tasks.
 
 1. Install the Windows USB/IP driver + CLI (`usbip.exe`) and confirm `usbip.exe help` works from an elevated shell. The recommended build is `usbip-win2 0.9.7.3` from <https://github.com/vadimgrn/usbip-win2/releases/tag/V.0.9.7.3>.
-2. Fetch the project and run the Windows installer:
+2. Install PowerShell 7 if it is not already present. Download the latest MSI from <https://aka.ms/powershell>, run it as Administrator, and verify `pwsh --version` works.
+3. Fetch the project and run the Windows installer:
 
 ```powershell
 git clone https://github.com/5TFG4/autohub-usbip.git
@@ -15,7 +16,7 @@ Set-Location autohub-usbip\windows
 .\install.ps1
 ```
 
-> `install.ps1` validates that `usbip.exe` is discoverable via `Get-Command`. If it is missing from `PATH`, the script halts with step-by-step instructions (including the link above) so you can install the CLI before continuing.
+> `install.ps1` validates that `usbip.exe` and `pwsh.exe` are discoverable via `Get-Command`. If either tool is missing, the script halts with guidance so you can install the dependency before continuing.
 
 The installer:
 
@@ -33,8 +34,9 @@ Only follow these steps if you prefer to manage the Windows configuration yourse
 ### 1. Prerequisites
 
 1. Install the Windows USB/IP driver + CLI (`usbip.exe`). Use a recent, signed build compatible with your Windows edition—`usbip-win2 0.9.7.3` is the tested baseline.
-2. Confirm `usbip.exe` is in the `PATH` by running `usbip.exe help` from an elevated PowerShell session.
-3. Clone or unpack the repository, then work from `autohub-usbip\windows`. All paths below assume you're inside that folder; override locations with `-ConfigPath` if you move the files elsewhere.
+2. Install PowerShell 7 (`pwsh.exe`) from <https://aka.ms/powershell>. Confirm it is on `PATH` by running `pwsh --version`.
+3. Confirm `usbip.exe` is in the `PATH` by running `usbip.exe help` from an elevated shell.
+4. Clone or unpack the repository, then work from `autohub-usbip\windows`. All paths below assume you're inside that folder; override locations with `-ConfigPath` if you move the files elsewhere.
 
 ### 2. Directory layout and allow-list
 
@@ -73,7 +75,7 @@ All PowerShell scripts read `autohub.config` automatically, so avoid hard-coding
 Manual run (assumes `Set-Location autohub-usbip\windows`):
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\listener.ps1
+pwsh -NoProfile -File .\listener.ps1
 ```
 
 ### 4. URLACL + firewall rule
@@ -93,7 +95,7 @@ New-NetFirewallRule -DisplayName "Autohub listener 59876" `
 After editing `clients.allow`, apply the addresses to the firewall rule:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\update-firewall.ps1
+pwsh -NoProfile -File .\update-firewall.ps1
 ```
 
 ### 5. Sync script
@@ -107,7 +109,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\update-firewall.ps1
 Manual test run:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\sync.ps1
+pwsh -NoProfile -File .\sync.ps1
 ```
 
 ### 6. Scheduled tasks
@@ -115,14 +117,16 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\sync.ps1
 Create **two** scheduled tasks per user (highest privileges recommended):
 
 ```powershell
-$listenerAction = New-ScheduledTaskAction -Execute "powershell.exe" `
-  -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$PWD\listener.ps1`""
+$pwsh = (Get-Command pwsh.exe -ErrorAction Stop).Source
+
+$listenerAction = New-ScheduledTaskAction -Execute $pwsh `
+  -Argument "-NoProfile -File `"$PWD\listener.ps1`""
 $listenerTrigger = New-ScheduledTaskTrigger -AtLogOn
 Register-ScheduledTask -TaskName "Autohub Listener" -Action $listenerAction -Trigger $listenerTrigger `
   -Description "USB/IP event listener" -RunLevel Highest
 
-$syncAction = New-ScheduledTaskAction -Execute "powershell.exe" `
-  -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$PWD\sync.ps1`""
+$syncAction = New-ScheduledTaskAction -Execute $pwsh `
+  -Argument "-NoProfile -File `"$PWD\sync.ps1`""
 
 # TASK_SESSION_UNLOCK = 8 via MSFT_TaskSessionStateChangeTrigger (Task Scheduler CIM)
 $stateChangeClass = Get-CimClass -Namespace "root\Microsoft\Windows\TaskScheduler" `
