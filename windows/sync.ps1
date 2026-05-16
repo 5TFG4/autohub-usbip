@@ -20,6 +20,27 @@ function Import-AutohubConfig {
 $config = Import-AutohubConfig -Path $ConfigPath
 $piHost = if ($config.ContainsKey('PI_HOST')) { $config['PI_HOST'] } else { '192.168.1.2' }
 
+# Wait until the Pi is reachable before attempting USB/IP operations.
+# This avoids silent failures when the network is not yet ready at logon time.
+$maxWaitSeconds = 300  # 5 minutes
+$pingInterval = 5      # check every 5 seconds
+$elapsed = 0
+$piReachable = $false
+Write-Verbose "Waiting for Pi ($piHost) to become reachable (timeout ${maxWaitSeconds}s)..."
+while ($elapsed -lt $maxWaitSeconds) {
+  $pingResult = Test-Connection -ComputerName $piHost -Count 1 -Quiet -ErrorAction SilentlyContinue
+  if ($pingResult) {
+    $piReachable = $true
+    Write-Verbose "Pi ($piHost) is reachable after ${elapsed}s."
+    break
+  }
+  Start-Sleep -Seconds $pingInterval
+  $elapsed += $pingInterval
+}
+if (-not $piReachable) {
+  Write-Warning "Pi ($piHost) not reachable after ${maxWaitSeconds}s; proceeding anyway (usbip commands may fail)."
+}
+
 function Get-ExportedBusIds {
   param([string]$Pi)
 

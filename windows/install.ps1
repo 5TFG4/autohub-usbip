@@ -173,7 +173,8 @@ function Register-AutohubTask {
     [string]$ScriptPath,
     [string]$Description,
     [switch]$IncludeUnlockTrigger,
-    [switch]$ForceReregister
+    [switch]$ForceReregister,
+    [switch]$UnlimitedRuntime  # for long-running tasks like the listener
   )
   $task = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
   if ($task -and $ForceReregister) {
@@ -189,12 +190,20 @@ function Register-AutohubTask {
     @(New-ScheduledTaskTrigger -AtLogOn -User $userAccount)
   }
   $principal = New-ScheduledTaskPrincipal -UserId $userAccount -LogonType Interactive
-  Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $triggers -Principal $principal -Description $Description | Out-Null
+  $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+  if ($UnlimitedRuntime) {
+    # PT0S = unlimited execution time; prevents Task Scheduler from killing long-running tasks.
+    $settings.ExecutionTimeLimit = 'PT0S'
+    # Restart every minute for up to 3 attempts if the task fails.
+    $settings.RestartCount = 3
+    $settings.RestartInterval = 'PT1M'
+  }
+  Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $triggers -Principal $principal -Settings $settings -Description $Description | Out-Null
   return $true
 }
 
 $registered = @()
-if (Register-AutohubTask -TaskName 'Autohub Listener' -ScriptPath $listenerScript -Description 'Start the AutoHub listener at logon.') {
+if (Register-AutohubTask -TaskName 'Autohub Listener' -ScriptPath $listenerScript -Description 'Start the AutoHub listener at logon.' -UnlimitedRuntime -ForceReregister) {
   $registered += 'Autohub Listener'
 }
 if (Register-AutohubTask -TaskName 'Autohub Sync On Logon' -ScriptPath $syncScript -Description 'Sync usbip ports with the Pi at logon and unlock.' -IncludeUnlockTrigger -ForceReregister) {
@@ -206,4 +215,19 @@ if ($registered.Count -gt 0) {
   Write-Host 'Scheduled tasks already in place: Autohub Listener, Autohub Sync On Logon.'
 }
 
+# ---- persist currently attached devices via usbip-win2 driver ----
+# This marks all currently attached USB/IP devices as "persistent" so the
+# driver will automatically reattach them on boot / after network loss,
+# independent of the user-mode scripts above.
+Write-Host ''
+Write-Host 'Marking currently attached USB/IP devices as persistent (driver-level auto-reattach)...'
+$stashOutput = & usbip port --stash 2>&1
+if ($LASTEXITCODE -eq 0) {
+  Write-Host '  Devices marked as persistent. Use "usbip list --stashed" to inspect.'
+} else {
+  Write-Host "  usbip port --stash returned exit code $LASTEXITCODE (may be benign if no devices are currently attached)."
+  if ($stashOutput) { Write-Host "  Output: $stashOutput" }
+}
+
+Write-Host ''
 Write-Host 'Installation complete.'
