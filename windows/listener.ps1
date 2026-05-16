@@ -66,8 +66,8 @@ function Detach-Busid {
 }
 
 while ($true) {
-  $ctx = $listener.GetContext()
   try {
+    $ctx = $listener.GetContext()
     $allowed = Get-AllowList -Path $allowListPath
     $remote = $ctx.Request.RemoteEndPoint.Address.ToString()
     if ($allowed.Count -gt 0 -and ($allowed -notcontains $remote)) {
@@ -110,8 +110,13 @@ while ($true) {
   }
   catch {
     try {
-      $ctx.Response.StatusCode = 500
-      $ctx.Response.Close()
+      if ($ctx) {
+        $ctx.Response.StatusCode = 500
+        $ctx.Response.Close()
+      }
     } catch {}
+    # Brief pause to avoid tight spin if the listener itself is broken
+    # (e.g. URLACL was removed). Task Scheduler will restart us if needed.
+    Start-Sleep -Seconds 1
   }
 }
