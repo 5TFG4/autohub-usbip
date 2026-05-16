@@ -174,7 +174,8 @@ function Register-AutohubTask {
     [string]$Description,
     [switch]$IncludeUnlockTrigger,
     [switch]$ForceReregister,
-    [switch]$UnlimitedRuntime  # for long-running tasks like the listener
+    [switch]$UnlimitedRuntime,  # for long-running tasks like the listener
+    [switch]$Headless           # run detached from interactive session (won't die on console close)
   )
   $task = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
   if ($task -and $ForceReregister) {
@@ -182,14 +183,25 @@ function Register-AutohubTask {
   } elseif ($task) {
     return $false
   }
-  $arguments = "-NoProfile -File `"$ScriptPath`" -ConfigPath `"$configPath`""
+  if ($Headless) {
+    # -WindowStyle Hidden avoids creating a visible console that could be tied to the session.
+    # LogonType S4U (Service-for-User) runs the task in the user's security context without
+    # requiring an interactive desktop — closing terminals won't kill the task.
+    $arguments = "-NoProfile -WindowStyle Hidden -File `"$ScriptPath`" -ConfigPath `"$configPath`""
+    $principal = New-ScheduledTaskPrincipal -UserId $userAccount -LogonType S4U
+  } else {
+    $arguments = "-NoProfile -File `"$ScriptPath`" -ConfigPath `"$configPath`""
+    $principal = New-ScheduledTaskPrincipal -UserId $userAccount -LogonType Interactive
+  }
   $action = New-ScheduledTaskAction -Execute $pwsh -Argument $arguments
-  $triggers = if ($IncludeUnlockTrigger) {
+  $triggers = if ($Headless) {
+    # S4U tasks use AtStartup (not AtLogOn) since they run independently of interactive logon.
+    @(New-ScheduledTaskTrigger -AtStartup)
+  } elseif ($IncludeUnlockTrigger) {
     New-AutohubSyncTriggers -UserId $userAccount
   } else {
     @(New-ScheduledTaskTrigger -AtLogOn -User $userAccount)
   }
-  $principal = New-ScheduledTaskPrincipal -UserId $userAccount -LogonType Interactive
   $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
   if ($UnlimitedRuntime) {
     # PT0S = unlimited execution time; prevents Task Scheduler from killing long-running tasks.
@@ -203,7 +215,7 @@ function Register-AutohubTask {
 }
 
 $registered = @()
-if (Register-AutohubTask -TaskName 'Autohub Listener' -ScriptPath $listenerScript -Description 'Start the AutoHub listener at logon.' -UnlimitedRuntime -ForceReregister) {
+if (Register-AutohubTask -TaskName 'Autohub Listener' -ScriptPath $listenerScript -Description 'Start the AutoHub listener at logon.' -UnlimitedRuntime -Headless -ForceReregister) {
   $registered += 'Autohub Listener'
 }
 if (Register-AutohubTask -TaskName 'Autohub Sync On Logon' -ScriptPath $syncScript -Description 'Sync usbip ports with the Pi at logon and unlock.' -IncludeUnlockTrigger -ForceReregister) {
